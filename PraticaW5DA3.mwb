@@ -1,0 +1,135 @@
+CREATE TABLE AziendaAgricola (
+ID_Azienda        INT PRIMARY KEY,
+NomeAzienda       VARCHAR(100) NOT NULL,
+Provincia         VARCHAR(50) NOT NULL,
+PIVA              CHAR(11) NOT NULL UNIQUE
+);
+CREATE TABLE Uliveto (
+ID_Uliveto        INT PRIMARY KEY,
+ID_Azienda        INT NOT NULL,
+Localita          VARCHAR(100) NOT NULL,
+Varieta           VARCHAR(100) NOT NULL,
+FOREIGN KEY (ID_Azienda) REFERENCES AziendaAgricola(ID_Azienda)
+);
+CREATE TABLE Frantoio (
+ID_Frantoio             INT PRIMARY KEY,
+Provincia               VARCHAR(50) NOT NULL,
+NumeroRegistrazione     VARCHAR(50) NOT NULL UNIQUE,
+CertificatoDOP          BOOLEAN NOT NULL
+);
+CREATE TABLE OrganismoControllo (
+ID_Organismo        INT PRIMARY KEY,
+Nome                VARCHAR(100) NOT NULL,
+CodiceAccreditamento VARCHAR(50) NOT NULL UNIQUE,
+Sede                VARCHAR(100) NOT NULL
+);
+CREATE TABLE Cliente (
+ID_Cliente          INT PRIMARY KEY,
+NomeRagioneSociale  VARCHAR(150) NOT NULL,
+Indirizzo           VARCHAR(200) NOT NULL,
+Telefono            VARCHAR(20)
+);
+CREATE TABLE Raccolta (
+ID_Raccolta     INT PRIMARY KEY,
+ID_Uliveto      INT NOT NULL,
+Dataaccolta  VARCHAR(100),
+QuantRaccolta    DATE NOT NULL,
+MetodoRitaKg      DECIMAL(10,2) NOT NULL,
+FOREIGN KEY (ID_Uliveto) REFERENCES Uliveto(ID_Uliveto),
+CHECK (MONTH(DataRaccolta) = 12 AND DAY(DataRaccolta) BETWEEN 3 AND 12)
+);
+CREATE TABLE Frangitura (
+ID_Frangitura       INT PRIMARY KEY,
+ID_Raccolta         INT NOT NULL,
+ID_Frantoio         INT NOT NULL,
+DataFrangitura      DATE NOT NULL,
+ResaPercento        DECIMAL(5,2) NOT NULL,
+QuantitaLitri       DECIMAL(10,2) NOT NULL,
+TemperaturaEstrattiva DECIMAL(4,1) NOT NULL,
+FOREIGN KEY (ID_Raccolta) REFERENCES Raccolta(ID_Raccolta),
+FOREIGN KEY (ID_Frantoio) REFERENCES Frantoio(ID_Frantoio),
+CHECK (TemperaturaEstrattiva < 27)
+);
+CREATE TABLE LottoDOP (
+ID_Lotto            INT PRIMARY KEY,
+ID_Frangitura       INT NOT NULL,
+DataProduzione      DATE NOT NULL,
+Acidita             DECIMAL(4,2) NOT NULL,
+Perossidi           DECIMAL(5,2) NOT NULL,
+PanelTestIdoneo     BOOLEAN NOT NULL,
+QuantitaLitri       DECIMAL(10,2) NOT NULL,
+CertificazioneConformita BOOLEAN NOT NULL,
+FOREIGN KEY (ID_Frangitura) REFERENCES Frangitura(ID_Frangitura),
+CHECK (Acidita < 0.8),
+CHECK (Perossidi < 20)
+);
+CREATE TABLE Certificazione (
+ID_Certificazione   INT PRIMARY KEY,
+ID_Organismo        INT NOT NULL,
+ID_Lotto            INT NOT NULL UNIQUE,
+DataCertificazione  DATE NOT NULL,
+Esito               BOOLEAN NOT NULL,
+FOREIGN KEY (ID_Organismo) REFERENCES OrganismoControllo(ID_Organismo),
+FOREIGN KEY (ID_Lotto) REFERENCES LottoDOP(ID_Lotto)
+);
+CREATE TABLE Confezionamento (
+ID_Confezionamento  INT PRIMARY KEY,
+ID_Lotto            INT NOT NULL,
+DataConfezionamento DATE NOT NULL,
+FormatoLitri        DECIMAL(3,1) NOT NULL,
+NumeroBottiglie     INT NOT NULL,
+EtichettaDOP        BOOLEAN NOT NULL,
+FOREIGN KEY (ID_Lotto) REFERENCES LottoDOP(ID_Lotto),
+CHECK (FormatoLitri IN (0.5, 0.75, 1.0, 3.0, 5.0))
+);
+CREATE TABLE Ordine (
+ID_Ordine           INT PRIMARY KEY,
+ID_Cliente          INT NOT NULL,
+ID_Confezionamento  INT NOT NULL,
+DataOrdine          DATE NOT NULL,
+QuantitaBottiglie   INT NOT NULL,
+PrezzoTotale        DECIMAL(10,2) NOT NULL,
+FOREIGN KEY (ID_Cliente) REFERENCES Cliente(ID_Cliente),
+FOREIGN KEY (ID_Confezionamento) REFERENCES Confezionamento(ID_Confezionamento)
+);
+INSERT INTO AziendaAgricola VALUES
+(1, 'Azienda Agricola Frantoiani', 'Taranto', '01234567890'),
+(2, 'Oliveti del Sud', 'Brindisi', '09876543210');
+INSERT INTO Uliveto VALUES
+(101, 1, 'Contrada San Paolo', 'Ogliarola'),
+(102, 1, 'Monte Fellone', 'Leccino'),
+(201, 2, 'Piana degli Ulivi', 'Coratina');
+INSERT INTO Frantoio VALUES
+(10, 'Taranto', 'FR-TA-001', TRUE),
+(11, 'Brindisi', 'FR-BR-014', TRUE);
+INSERT INTO Frantoio VALUES
+(10, 'Taranto', 'FR-TA-001', TRUE),
+(11, 'Brindisi', 'FR-BR-014', TRUE);
+INSERT INTO OrganismoControllo VALUES
+(1, 'Organismo DOP Puglia', 'ACC-001', 'Bari'),
+(2, 'Consorzio Qualità Olivicola', 'ACC-045', 'Lecce');
+INSERT INTO Cliente VALUES
+(1001, 'Ristorante Il Trullo', 'Via Mercato 12, Martina Franca', '0801234567'),
+(1002, 'Gourmet Italia Srl', 'Via Roma 88, Bari', '0807654321');
+INSERT INTO Raccolta VALUES
+(5001, 101, '2025-12-05', 'Brucatura', 1800.00),
+(5002, 102, '2025-12-07', 'Agevolata', 2200.00),
+(6001, 201, '2025-12-06', 'Brucatura', 2500.00);
+INSERT INTO Frangitura VALUES
+(7001, 5001, 10, '2025-12-06', 14.5, 260.00, 25.0),
+(7002, 5002, 10, '2025-12-08', 15.0, 330.00, 24.5),
+(7003, 6001, 11, '2025-12-07', 16.2, 405.00, 26.0);
+INSERT INTO LottoDOP VALUES
+(9001, 7001, '2025-12-06', 0.35, 12.0, TRUE, 260.00, TRUE),
+(9002, 7002, '2025-12-08', 0.40, 15.0, TRUE, 330.00, TRUE),
+(9003, 7003, '2025-12-07', 0.75, 18.0, TRUE, 405.00, FALSE); -- non conforme
+INSERT INTO Certificazione VALUES
+(3001, 1, 9001, '2025-12-10', TRUE),
+(3002, 1, 9002, '2025-12-11', TRUE),
+(3003, 2, 9003, '2025-12-10', FALSE); -- esito negativo
+INSERT INTO Confezionamento VALUES
+(4001, 9001, '2025-12-12', 0.75, 300, TRUE),
+(4002, 9002, '2025-12-13', 0.50, 500, TRUE);
+INSERT INTO Ordine VALUES
+(8001, 1001, 4001, '2025-12-15', 50, 650.00),
+(8002, 1002, 4002, '2025-12-16', 120, 900.00);
